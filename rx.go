@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -15,23 +12,21 @@ import (
 
 // rx
 type rx struct {
-	ObjectType   string `json:"objType"`      //objType is used to distinguish the various types of objects in state database
-	RXID         string `json:"rxid"`         // id of the prescription
-	ID           string `json:"id"`           // id of the patient
-	FirstName    string `json:"firstName"`    // first name of the patient
-	LastName     string `json:"lastName"`     // last name of the patient
-	Timestamp    int    `json:"timestamp"`    // timestamp of when prescription was prescribed and filled
-	Doctor       string `json:"doctor"`       // name of the doctor
-	Prescription string `json:"prescription"` // prescription name
-	Refills      int    `json:"refills"`      // number of refills
-	Status       string `json:"status"`       // current status of the prescription
+	RXID         string `json:"rxid"`             // id of the prescription
+	Timestamp    int    `json:"timestamp"`        // timestamp of when prescription was prescribed and filled
+	Doctor       string `json:"doctor,omitempty"` // name of the doctor
+	Pharmacist   string `json:"pharmacist,omitempty"`
+	Prescription string `json:"prescription,omitempty"` // prescription name
+	Refills      int    `json:"refills,emitempty"`      // number of refills
+	ExpirateDate int    `json:"expDate,omitempty"`
+	Status       string `json:"status,emitempty"` // current status of the prescription
 }
 
 // initPrescription: create a new prescription
 func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//   0       1      2     		3		   4			5	       6			7			8
-	// "rxid", "id", "firstName", "lastName", timestamp, "doctor", "prescription", refills, "status"
-	if len(args) < 9 {
+	//   0       		1      2     	3		   4	       		5		6
+	// "patientID", "rxid", timestamp, "doctor", "prescription", refills, "status"
+	if len(args) < 7 {
 		return shim.Error("Incorrect number of arguments. Expecting 9")
 	}
 
@@ -43,46 +38,81 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 	if len(args[1]) <= 0 {
 		return shim.Error("2nd argument must be a non-empty string")
 	}
-	if len(args[2]) <= 0 {
-		return shim.Error("3rd argument must be a non-empty string")
-	}
 	if len(args[3]) <= 0 {
 		return shim.Error("4th argument must be a non-empty string")
 	}
-	if len(args[5]) <= 0 {
+	if len(args[4]) <= 0 {
 		return shim.Error("6th argument must be a non-empty string")
 	}
 	if len(args[6]) <= 0 {
-		return shim.Error("7th argument must be a non-empty string")
-	}
-	if len(args[8]) <= 0 {
 		return shim.Error("9th argument must be a non-empty string")
 	}
 
-	// convert args to a rx struct
-	tempRX, err := argsToRX(args)
+	patientID := args[0]
+	rxid := args[1]
+
+	timestamp, err := strconv.Atoi(args[2])
+	if err != nil {
+		return shim.Error("3rd arguement must be non empty integer string")
+	}
+
+	doctor := args[3]
+	prescription := args[4]
+
+	refills, err := strconv.Atoi(args[5])
+	if err != nil {
+		return shim.Error("5th arguement must be a non empty integer string")
+	}
+
+	status := args[6]
+
+	// get patient Record
+	patientRecord := EMR{}
+
+	// retrieve patient record as bytes
+	patientRecordAsBytes, err := stub.GetState(patientID)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	fmt.Printf("Converted args to rx: %v\n", tempRX)
 
-	// retrieve any state with received RXID
-	emrAsBytes, err := stub.GetState(tempRX.RXID)
-	if err != nil {
-		return shim.Error("Failed to get record: " + err.Error())
-	} else if emrAsBytes != nil {
-		return shim.Error("This record already exists: " + tempRX.RXID)
+	// convert patient record as bytes to struct
+	if err := json.Unmarshal(patientRecordAsBytes, &patientRecord); err != nil {
+		return shim.Error(err.Error())
 	}
 
+	// return error if the patient record does not exist
+	if patientRecordAsBytes == nil {
+		return shim.Error("Patient Record does not exist: " + err.Error())
+	}
+
+	newRx := rx{
+		RXID:         rxid,
+		Timestamp:    timestamp,
+		Doctor:       doctor,
+		Prescription: prescription,
+		Refills:      refills,
+		Status:       status,
+	}
+
+	// see if rxid already exists in patient record
+	for _, tempRX := range patientRecord.RxList {
+		if tempRX.RXID == newRx.RXID {
+			return shim.Error("RXID already exists: " + tempRX.RXID)
+		}
+	}
+
+	// add new prescription to patient record
+	patientRecord.RxList = append(patientRecord.RxList, newRx)
+
 	// convert record to JSON bytes
-	emrJSONAsBytes, err := json.Marshal(tempRX)
+	patientRecordAsBytes, err = json.Marshal(patientRecord)
 	if err != nil {
 		return shim.Error("Error attempting to marshal rx: " + err.Error())
 	}
-	fmt.Printf("rx as json bytes: %s", string(emrAsBytes))
+	fmt.Printf("rx as json bytes: %s", string(patientRecordAsBytes))
 
 	// put record to state ledger
-	err = stub.PutState(tempRX.RXID, emrJSONAsBytes)
+	err = stub.PutState(patientRecord.PatientID, patientRecordAsBytes)
 	if err != nil {
 		return shim.Error("Error putting prescription to ledger: " + err.Error())
 	}
@@ -94,9 +124,9 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 
 // modifyPrescription: modifies existing prescription
 func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//   0       		1      		2     	3		   4			5	       6			7			8
-	// "rxid", "id", "firstName", "lastName", timestamp, "doctor", "prescription",refills,"status"
-	if len(args) < 9 {
+	//   0       	1      	2     		3		   4			5	       		6		7
+	// "patientid", "rxid", timestamp, "doctor", "pharmacist", "prescription", refills,"status"
+	if len(args) < 8 {
 		return shim.Error("Incorrect number of arguments. Expecting 9")
 	}
 
@@ -108,57 +138,80 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	if len(args[1]) <= 0 {
 		return shim.Error("2nd argument must be a non-empty string")
 	}
-	if len(args[2]) <= 0 {
-		return shim.Error("3rd argument must be a non-empty string")
-	}
+
 	if len(args[3]) <= 0 {
 		return shim.Error("4th argument must be a non-empty string")
 	}
-	if len(args[5]) <= 0 {
+	if len(args[4]) <= 0 {
 		return shim.Error("6th argument must be a non-empty string")
 	}
-	if len(args[6]) <= 0 {
+	if len(args[5]) <= 0 {
 		return shim.Error("7th argument must be a non-empty string")
 	}
 	if len(args[7]) <= 0 {
 		return shim.Error("8th argument must be a non-empty string")
 	}
-	if len(args[8]) <= 0 {
-		return shim.Error("9th argument must be a non-empty string")
-	}
 
-	// convert args to rx record
-	tempRX, err := argsToRX(args)
+	patientID := args[0]
+	rxid := args[1]
+	timestamp, err := strconv.Atoi(args[2])
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	// retrieve any state with retrieved rxid
-	emrAsBytes, err := stub.GetState(tempRX.RXID)
-	if err != nil {
-		return shim.Error("Failed to get rx: " + tempRX.RXID)
-	} else if emrAsBytes == nil {
-		return shim.Error("prescription does not exist: " + tempRX.RXID)
-	}
+	doctor := args[3]
+	pharmacist := args[4]
+	prescription := args[5]
 
-	// create an empty rx struct and unmarshal current state of rx
-	emrToUpdate := rx{}
-	err = json.Unmarshal(emrAsBytes, &emrToUpdate)
+	refills, err := strconv.Atoi(args[6])
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	// update rx record with any new values
-	emrToUpdate = tempRX
+	status := args[7]
+
+	// retrieve patient record
+	patientRecordAsBytes, err := stub.GetState(patientID)
+	if err != nil {
+		return shim.Error("Failed to get record: " + patientID)
+	} else if patientRecordAsBytes == nil {
+		return shim.Error("patient record does not exist: " + patientID)
+	}
+
+	// create a patient record interface to load bytes into
+	patientRecord := EMR{}
+	err = json.Unmarshal(patientRecordAsBytes, &patientRecord)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// check if prescription record exists
+	IfExists := false
+	for key, tempRx := range patientRecord.RxList {
+		// update rx record with new details
+		if tempRx.RXID == rxid {
+			patientRecord.RxList[key].Doctor = doctor
+			patientRecord.RxList[key].Pharmacist = pharmacist
+			patientRecord.RxList[key].Prescription = prescription
+			patientRecord.RxList[key].Refills = refills
+			patientRecord.RxList[key].Status = status
+			patientRecord.RxList[key].Timestamp = timestamp
+			IfExists = true
+		}
+	}
+
+	if IfExists == false {
+		return shim.Error("RXID does not exist: " + rxid)
+	}
 
 	// convert struct to json bytes
-	emrJSONBytes, err := json.Marshal(emrToUpdate)
+	patientRecordAsBytes, err = json.Marshal(patientRecord)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
 	// send rx record to state ledger
-	err = stub.PutState(tempRX.RXID, emrJSONBytes)
+	err = stub.PutState(patientID, patientRecordAsBytes)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -167,111 +220,85 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	return shim.Success(nil)
 }
 
-// argsToRX convert args to struct
-// Input: args from shim
-// Output: rx struct
-func argsToRX(args []string) (rx, error) {
-	var tempRX rx
+func (t *Chaincode) getRxHistoryOfPatient(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
-	rxid := strings.ToLower(args[0])
-	id := strings.ToLower(args[1])
-	firstName := strings.ToLower(args[2])
-	lastName := strings.ToLower(args[3])
-
-	timestamp, err := strconv.Atoi(args[4])
-	if err != nil {
-		return tempRX, errors.New("5th argument must be a numeric string")
-	}
-
-	doctor := strings.ToLower(args[5])
-	prescription := strings.ToLower(args[6])
-	refills, err := strconv.Atoi(args[7])
-	if err != nil {
-		return tempRX, errors.New("8th argument must be a numeric string")
-	}
-	status := strings.ToLower(args[8])
-
-	tempRX = rx{
-		ObjectType:   "rx",
-		RXID:         rxid,
-		ID:           id,
-		FirstName:    firstName,
-		LastName:     lastName,
-		Timestamp:    timestamp,
-		Doctor:       doctor,
-		Prescription: prescription,
-		Refills:      refills,
-		Status:       status,
-	}
-
-	return tempRX, err
-}
-
-func (t *Chaincode) getRxHistory(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	// 	0
+	// "patientid"
 
 	// check for args of RXID
 	if len(args) < 1 {
 		return shim.Error("Incorrect number of arguments, expecting 1")
 	}
 
-	// convert rxid to lowercase
-	rxid := strings.ToLower(args[0])
+	// convert patientID to lowercase
+	patientID := strings.ToLower(args[0])
 
-	// iterate over history for each record state
-	resultsIterator, err := stub.GetHistoryForKey(rxid)
+	// retrieve iterator of the history for a patient record
+	resultsIterator, err := stub.GetHistoryForKey(patientID)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 	defer resultsIterator.Close()
 
-	// create a buffer
-	var buffer bytes.Buffer
-	buffer.WriteString("[")
+	// create struct that returns a history of past rx transactions
+	// RxHistory is a list that contains a point in time for every time the patients
+	// records prescription list changed
+	rxHistoryResponse := struct {
+		PatientID string `json:"patientID"`
+		RxHistory [][]rx `json:"rxHistory"`
+	}{
+		PatientID: patientID,
+	}
 
-	bArrayMemberAlreadyWritten := false
+	// check for results in the iterator
 	for resultsIterator.HasNext() {
+		// retrieve the results
 		response, err := resultsIterator.Next()
 		if err != nil {
 			return shim.Error(err.Error())
 		}
+		// create a temporary patient record to hold the iterators values
+		tempPatientRecord := EMR{}
 
-		// Add a comma before array members, suppress it for the first array member
-		if bArrayMemberAlreadyWritten == true {
-			buffer.WriteString(",")
+		// unmarshal bytes to temporary patient record
+		if err := json.Unmarshal(response.Value, &tempPatientRecord); err != nil {
+			return shim.Error(err.Error())
 		}
-		buffer.WriteString("{\"TxId\":")
-		buffer.WriteString("\"")
-		buffer.WriteString(response.TxId)
-		buffer.WriteString("\"")
 
-		buffer.WriteString(", \"Value\":")
-		// if it was a delete operation on given key, then we need to set the
-		//corresponding value null. Else, we will write the response.Value
-		//as-is (as the Value itself a JSON vehiclePart)
-		if response.IsDelete {
-			buffer.WriteString("null")
+		// check if the length of th last rxList is the same as the temporary
+		// patients record list
+		// this will check if a new prescription was added or deleted
+		// in any case add the point in time state to the rx history response
+		// else iterate through each prescription to see if it changed
+
+		if len(rxHistoryResponse.RxHistory) >= 0 && len(tempPatientRecord.RxList) == 0 {
+			continue
+		} else if len(rxHistoryResponse.RxHistory) == 0 && len(tempPatientRecord.RxList) >= 1 {
+			rxHistoryResponse.RxHistory = append(rxHistoryResponse.RxHistory, tempPatientRecord.RxList)
+		} else if len(rxHistoryResponse.RxHistory[len(rxHistoryResponse.RxHistory)-1]) != len(tempPatientRecord.RxList) {
+			rxHistoryResponse.RxHistory = append(rxHistoryResponse.RxHistory, tempPatientRecord.RxList)
 		} else {
-			buffer.WriteString(string(response.Value))
+			for key, tempPatientRx := range tempPatientRecord.RxList {
+				if rxHistoryResponse.RxHistory[len(rxHistoryResponse.RxHistory)-1][key] != tempPatientRx {
+					rxHistoryResponse.RxHistory = append(rxHistoryResponse.RxHistory, tempPatientRecord.RxList)
+				}
+			}
 		}
-
-		buffer.WriteString(", \"Timestamp\":")
-		buffer.WriteString("\"")
-		buffer.WriteString(time.Unix(response.Timestamp.Seconds, int64(response.Timestamp.Nanos)).String())
-		buffer.WriteString("\"")
-
-		buffer.WriteString(", \"IsDelete\":")
-		buffer.WriteString("\"")
-		buffer.WriteString(strconv.FormatBool(response.IsDelete))
-		buffer.WriteString("\"")
-
-		buffer.WriteString("}")
-		bArrayMemberAlreadyWritten = true
+		// else {
+		// 	for key, rx := range tempPatientRecord.RxList {
+		// 		if rx != rxHistoryResponse.RxHistory[len(rxHistoryResponse.RxHistory)-1][key] {
+		// 			rxHistoryResponse.RxHistory = append(rxHistoryResponse.RxHistory, tempPatientRecord.RxList)
+		// 		}
+		// 	}
+		// }
 	}
-	buffer.WriteString("]")
 
-	fmt.Printf("- getHistoryForRecord returning:\n%s\n", buffer.String())
+	rxHistoryResponseAsBytes, err := json.Marshal(rxHistoryResponse)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 
-	return shim.Success(buffer.Bytes())
+	return shim.Success(rxHistoryResponseAsBytes)
 }
 
 func (t *Chaincode) getAllRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
@@ -279,5 +306,48 @@ func (t *Chaincode) getAllRx(stub shim.ChaincodeStubInterface, args []string) pb
 }
 
 func (t *Chaincode) getRxForPatient(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	return shim.Success(nil)
+	//	0
+	// "patientID"
+
+	if len(args) < 1 {
+		return shim.Error("Expectin 1 arguement: patientID")
+	}
+
+	if len(args[0]) <= 0 {
+		return shim.Error("1st arguement must be a non empty string")
+	}
+
+	patientID := args[0]
+
+	// create empty patient record interface
+	patientRecord := EMR{}
+
+	// get current state of the given patient record
+	patientRecordAsBytes, err := stub.GetState(patientID)
+	if err != nil {
+		return shim.Error("Unable to get record: " + err.Error())
+	}
+
+	// convert patient record as bytes to struct
+	if err := json.Unmarshal(patientRecordAsBytes, &patientRecord); err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// create custom struct for response of list of prescriptions for a given patient
+	response := struct {
+		PatientID string `json:"patientID"`
+		RxList    []rx   `json:"rxList,omitempty"`
+	}{
+		PatientID: patientRecord.PatientID,
+		RxList:    patientRecord.RxList,
+	}
+
+	// convert reponse to bytes
+	responseAsBytes, err := json.Marshal(response)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// return results
+	return shim.Success(responseAsBytes)
 }

@@ -1,2 +1,3 @@
 #!/bin/bash
-zip chaincode.zip emrcc.go iot.go person.go rx.go
+rm emrcc.zip && \
+zip emrcc.zip hack.go heartrate.go insurance.go main.go person.go rx.go
