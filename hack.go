@@ -12,6 +12,10 @@ type hack struct {
 	IsHacked   bool   `json:"isHacked"`
 }
 
+// isHacked
+// input: nothing
+// output: a boolean of whether or not the system is hacked
+// Summary: get the status of whether or not the system is hacked or not
 func (t *Chaincode) isHacked(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
 	hackRecordAsBytes, err := stub.GetState("hack")
@@ -37,6 +41,11 @@ func (t *Chaincode) isHacked(stub shim.ChaincodeStubInterface, args []string) pb
 	return shim.Success(hackRecordAsBytes)
 }
 
+// hack
+// input: nothing
+// output: success that the value has been swapped between true and false for isHacked
+// Summary: set the value of isHacked to the opposite to transition betweent the system to being
+// hacked or not
 func (t *Chaincode) hack(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
 	hackRecord := hack{}
