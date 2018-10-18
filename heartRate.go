@@ -14,13 +14,13 @@ import (
 // timestamp is id of transaction
 type heartRateMessage struct {
 	HeartRate int `json:"heartRate"` // heart rate of the patient
-	TimeStamp int `json:"timeStamp"` // timestamp of the record
+	Timestamp int `json:"timestamp"` // timestamp of the record
 }
 
 // initIOTData
 // input: id, heart rate and timestamp
 // output: confirmation of record saved
-// saved each entry of heart rate data as it comes in
+// summary: insert each entry of a new heart rate message
 func (t *Chaincode) newHeartRateMessage(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
 	//		0			1			2
@@ -36,16 +36,16 @@ func (t *Chaincode) newHeartRateMessage(stub shim.ChaincodeStubInterface, args [
 	}
 
 	// convert patiendID to lowercase
-	patientID := strings.ToLower(args[1])
+	patientID := strings.ToLower(args[0])
 
 	// convert heartrate from string to integer
-	heartRate, err := strconv.Atoi(args[2])
+	heartRate, err := strconv.Atoi(args[1])
 	if err != nil {
 		return shim.Error("2nd arguement must be a numeric string")
 	}
 
 	// convert timestamp from string to integer
-	timestamp, err := strconv.Atoi(args[3])
+	timestamp, err := strconv.Atoi(args[2])
 	if err != nil {
 		return shim.Error("3rd arguement must be a numeric string")
 	}
@@ -54,7 +54,7 @@ func (t *Chaincode) newHeartRateMessage(stub shim.ChaincodeStubInterface, args [
 	// Record ID is a composotion of both patient id and the timestamp
 	newHeartRateMessage := heartRateMessage{
 		HeartRate: heartRate,
-		TimeStamp: timestamp,
+		Timestamp: timestamp,
 	}
 	fmt.Printf("Converted args to heartRateMessage struct: %v\n", newHeartRateMessage)
 
@@ -98,6 +98,7 @@ func (t *Chaincode) newHeartRateMessage(stub shim.ChaincodeStubInterface, args [
 // getHeartRateHistory
 // input: recordID
 // output: array of iot records
+// summary: get history of heart rate data for patient
 func (t *Chaincode) getHeartRateHistory(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
 	// check for args of patientID
@@ -135,12 +136,12 @@ func (t *Chaincode) getHeartRateHistory(stub shim.ChaincodeStubInterface, args [
 		}
 
 		// unmarshall response's value to patient interface
-		if err := json.Unmarshal(response.Value, patientRecord); err != nil {
+		if err := json.Unmarshal(response.Value, &patientRecord); err != nil {
 			return shim.Error(err.Error())
 		}
 
 		// add new heart rate message if timestamp is not equal to last entry in heart rate history
-		if patientHeartRateHistory.HeartRateHistory[len(patientHeartRateHistory.HeartRateHistory)-1].TimeStamp != patientRecord.HeartRate.TimeStamp {
+		if patientHeartRateHistory.HeartRateHistory[len(patientHeartRateHistory.HeartRateHistory)-1].Timestamp != patientRecord.HeartRate.Timestamp {
 			patientHeartRateHistory.HeartRateHistory = append(patientHeartRateHistory.HeartRateHistory, patientRecord.HeartRate)
 		}
 
