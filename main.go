@@ -11,7 +11,7 @@ import (
 type Chaincode struct {
 }
 
-// EMR
+// EMR medical record containing PII, heart rate, blood pressure, etc
 // summary:
 // store patients record, heart rate data and insurance information
 type EMR struct {
