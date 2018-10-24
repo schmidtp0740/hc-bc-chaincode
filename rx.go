@@ -20,13 +20,15 @@ type rx struct {
 	Refills      int    `json:"refills,emitempty"`      // number of refills
 	ExpirateDate int    `json:"expDate,omitempty"`
 	Status       string `json:"status,emitempty"` // current status of the prescription
+	Approved     bool   `json:"approved,omitempty"`
 }
 
 // initPrescription: create a new prescription
+// TODO modify with approved attribute
 func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//   0       		1      2     	3		   4	       		5		6
-	// "patientID", "rxid", timestamp, "doctor", "prescription", refills, "status"
-	if len(args) < 7 {
+	//   0       		1      2     	3		   4	       		5		6		7
+	// "patientID", "rxid", timestamp, "doctor", "prescription", refills, "status", "approved"
+	if len(args) < 8 {
 		return shim.Error("Incorrect number of arguments. Expecting 9")
 	}
 
@@ -45,7 +47,10 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 		return shim.Error("6th argument must be a non-empty string")
 	}
 	if len(args[6]) <= 0 {
-		return shim.Error("9th argument must be a non-empty string")
+		return shim.Error("7th argument must be a non-empty string")
+	}
+	if len(args[7]) <= 0 {
+		return shim.Error("8th arguement must be a non-empty string")
 	}
 
 	patientID := args[0]
@@ -65,6 +70,11 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 	}
 
 	status := args[6]
+
+	approved, err := strconv.ParseBool(args[7])
+	if err != nil {
+		return shim.Error("unable to parse bool from 7th arguement")
+	}
 
 	// get patient Record
 	patientRecord := EMR{}
@@ -92,6 +102,7 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 		Prescription: prescription,
 		Refills:      refills,
 		Status:       status,
+		Approved:     approved,
 	}
 
 	// see if rxid already exists in patient record
@@ -123,6 +134,7 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 }
 
 // modifyPrescription: modifies existing prescription
+// TODO modify with approved attribute
 func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	//   0       	1      	2     		3		   4			5	       		6		7
 	// "patientid", "rxid", timestamp, "doctor", "pharmacist", "prescription", refills,"status"
@@ -220,6 +232,7 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	return shim.Success(nil)
 }
 
+// TODO modify with approved attribute
 func (t *Chaincode) getRxHistoryOfPatient(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
 	// 	0
@@ -305,6 +318,7 @@ func (t *Chaincode) getAllRx(stub shim.ChaincodeStubInterface, args []string) pb
 	return shim.Success(nil)
 }
 
+// TODO modify with approved attribute
 func (t *Chaincode) getRxForPatient(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	//	0
 	// "patientID"

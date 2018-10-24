@@ -13,8 +13,8 @@ import (
 // iotData
 // timestamp is id of transaction
 type heartRateMessage struct {
-	HeartRate int `json:"heartRate"` // heart rate of the patient
-	Timestamp int `json:"timestamp"` // timestamp of the record
+	HeartRate int `json:"heartRate,omitempty"` // heart rate of the patient
+	Timestamp int `json:"timestamp,omitempty"` // timestamp of the record
 }
 
 // initIOTData
@@ -23,6 +23,7 @@ type heartRateMessage struct {
 // summary: insert each entry of a new heart rate message
 func (t *Chaincode) newHeartRateMessage(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
+	fmt.Println("Initiating newHeartRateMessage")
 	//		0			1			2
 	// "patientID", heartRate, timestamp
 	if len(args) < 3 {
@@ -101,6 +102,7 @@ func (t *Chaincode) newHeartRateMessage(stub shim.ChaincodeStubInterface, args [
 // summary: get history of heart rate data for patient
 func (t *Chaincode) getHeartRateHistory(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
+	fmt.Println("-------- init getHeartRateHistory-----------")
 	// check for args of patientID
 	if len(args) < 1 {
 		return shim.Error("Incorrect number of arguments, expecting 1")
@@ -140,8 +142,13 @@ func (t *Chaincode) getHeartRateHistory(stub shim.ChaincodeStubInterface, args [
 			return shim.Error(err.Error())
 		}
 
+		fmt.Printf("tempPatientRecord: %v\n", patientRecord)
+
 		// add new heart rate message if timestamp is not equal to last entry in heart rate history
-		if patientHeartRateHistory.HeartRateHistory[len(patientHeartRateHistory.HeartRateHistory)-1].Timestamp != patientRecord.HeartRate.Timestamp {
+		if len(patientHeartRateHistory.HeartRateHistory) == 0 && patientRecord.HeartRate.Timestamp != 0 {
+			patientHeartRateHistory.HeartRateHistory = append(patientHeartRateHistory.HeartRateHistory, patientRecord.HeartRate)
+		} else if len(patientHeartRateHistory.HeartRateHistory) > 0 &&
+			patientHeartRateHistory.HeartRateHistory[len(patientHeartRateHistory.HeartRateHistory)-1].Timestamp != patientRecord.HeartRate.Timestamp {
 			patientHeartRateHistory.HeartRateHistory = append(patientHeartRateHistory.HeartRateHistory, patientRecord.HeartRate)
 		}
 
@@ -152,7 +159,7 @@ func (t *Chaincode) getHeartRateHistory(stub shim.ChaincodeStubInterface, args [
 	if err != nil {
 		return shim.Error("error marshalling iot data in iot history")
 	}
-	fmt.Printf("- getIOTHistory returning:\n%s\n", string(heartRateHistoryAsBytes))
+	fmt.Printf("- getHeartRateHistory returning:\n%s\n", string(heartRateHistoryAsBytes))
 
 	return shim.Success(heartRateHistoryAsBytes)
 }

@@ -11,19 +11,21 @@ import (
 type Chaincode struct {
 }
 
-// EMR ...
+// EMR
+// summary:
 // store patients record, heart rate data and insurance information
 type EMR struct {
-	ObjectType string           `json:"objType"`
-	PatientID  string           `json:"id"`                  // patient id must be in the format of "p###"
-	FirstName  string           `json:"firstName"`           // will be lowercase
-	LastName   string           `json:"lastName"`            // will be lowercas
-	DOB        string           `json:"dob"`                 // format of MM/DD/YYYY
-	Address    string           `json:"address"`             // format is street address city, state, zip
-	Phone      string           `json:"phone"`               // format is ###-###-####
-	HeartRate  heartRateMessage `json:"heartRate,omitempty"` // current heart rate message
-	RxList     []rx             `json:"rxList,omitempty"`    // list of prescriptions that the patient has currently
-	Insurance  insurance        `json:"insurance,omitempty"` // current insurance
+	ObjectType    string           `json:"objType"`
+	PatientID     string           `json:"id"`                      // patient id must be in the format of "p###"
+	FirstName     string           `json:"firstName"`               // will be lowercase
+	LastName      string           `json:"lastName"`                // will be lowercas
+	DOB           string           `json:"dob"`                     // format of MM/DD/YYYY
+	Address       string           `json:"address"`                 // format is street address city, state, zip
+	Phone         string           `json:"phone"`                   // format is ###-###-####
+	HeartRate     heartRateMessage `json:"heartRate,omitempty"`     // current heart rate message
+	RxList        []rx             `json:"rxList,omitempty"`        // list of prescriptions that the patient has currently
+	Insurance     insurance        `json:"insurance,omitempty"`     // current insurance
+	BloodPressure bloodPressure    `json:"bloodPressure,omitempty"` // current blood pressure
 }
 
 // Main
@@ -51,26 +53,31 @@ func (t *Chaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 
 	// Handle different functions
 	if function == "insertRx" {
+		// TESTED OK - check with approved attribute
 		return t.insertRx(stub, args)
 	} else if function == "getRxForPatient" {
+		// TESTED OK - check with approved attribute
 		return t.getRxForPatient(stub, args)
 	} else if function == "getAllRx" {
 		// TODO
 		return t.getAllRx(stub, args)
 	} else if function == "modifyRx" {
+		// TESTED OK - check with approved attribute
 		return t.modifyRx(stub, args)
 	} else if function == "getRxHistoryOfPatient" {
 		// bug found
 		return t.getRxHistoryOfPatient(stub, args)
 	} else if function == "newHeartRateMessage" {
-		// Needs to be tested
+		// TESTED OK
 		return t.newHeartRateMessage(stub, args) // insert new heart rate message to blockchain
 	} else if function == "getHeartRateHistory" {
-		// needs to be tested
+		// TESTED OK
 		return t.getHeartRateHistory(stub, args) // get history of heart rate data for a given patient
 	} else if function == "getPerson" {
+		// TESTED OK
 		return t.getPerson(stub, args)
 	} else if function == "getPeople" {
+		// TESTED OK
 		return t.getPeople(stub, args)
 	}
 
