@@ -136,8 +136,8 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 // modifyPrescription: modifies existing prescription
 // TODO modify with approved attribute
 func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//   0       	1      	2     		3		   4			5	       		6		7
-	// "patientid", "rxid", timestamp, "doctor", "pharmacist", "prescription", refills,"status"
+	//   0       	1      	2     		3		   4			5	       		6		7		8
+	// "patientid", "rxid", timestamp, "doctor", "pharmacist", "prescription", refills,"status", "approved"
 	if len(args) < 8 {
 		return shim.Error("Incorrect number of arguments. Expecting 9")
 	}
@@ -155,13 +155,16 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 		return shim.Error("4th argument must be a non-empty string")
 	}
 	if len(args[4]) <= 0 {
-		return shim.Error("6th argument must be a non-empty string")
+		return shim.Error("5th argument must be a non-empty string")
 	}
 	if len(args[5]) <= 0 {
-		return shim.Error("7th argument must be a non-empty string")
+		return shim.Error("6th argument must be a non-empty string")
 	}
 	if len(args[7]) <= 0 {
 		return shim.Error("8th argument must be a non-empty string")
+	}
+	if len(args[8]) <= 0 {
+		return shim.Error("9th arguement must be a non empty string")
 	}
 
 	patientID := args[0]
@@ -181,6 +184,11 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	}
 
 	status := args[7]
+
+	approved, err := strconv.ParseBool(args[7])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 
 	// retrieve patient record
 	patientRecordAsBytes, err := stub.GetState(patientID)
@@ -208,6 +216,7 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 			patientRecord.RxList[key].Refills = refills
 			patientRecord.RxList[key].Status = status
 			patientRecord.RxList[key].Timestamp = timestamp
+			patientRecord.RxList[key].Approved = approved
 			IfExists = true
 		}
 	}
@@ -234,7 +243,6 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 
 // TODO modify with approved attribute
 func (t *Chaincode) getRxHistoryOfPatient(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-
 	// 	0
 	// "patientid"
 
