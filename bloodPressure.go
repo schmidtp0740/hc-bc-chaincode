@@ -146,7 +146,10 @@ func (t *Chaincode) getBloodPressureHistory(stub shim.ChaincodeStubInterface, ar
 		}
 
 		// check if blood history is not the same as last
-		if patientBloodPressureHistory.BloodPressureHistory[len(patientBloodPressureHistory.BloodPressureHistory)-1].Timestamp != patientRecord.BloodPressure.Timestamp {
+		if len(patientBloodPressureHistory.BloodPressureHistory) == 0 && patientRecord.BloodPressure.Timestamp != 0 {
+			patientBloodPressureHistory.BloodPressureHistory = append(patientBloodPressureHistory.BloodPressureHistory, patientRecord.BloodPressure)
+		} else if len(patientBloodPressureHistory.BloodPressureHistory) > 0 &&
+			patientBloodPressureHistory.BloodPressureHistory[len(patientBloodPressureHistory.BloodPressureHistory)-1].Timestamp != patientRecord.BloodPressure.Timestamp {
 			patientBloodPressureHistory.BloodPressureHistory = append(patientBloodPressureHistory.BloodPressureHistory, patientRecord.BloodPressure)
 		}
 	}
