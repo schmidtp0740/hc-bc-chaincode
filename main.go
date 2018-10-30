@@ -53,19 +53,16 @@ func (t *Chaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 
 	// Handle different functions
 	if function == "insertRx" {
-		// TESTED OK - check with approved attribute
+		// TESTED OK
 		return t.insertRx(stub, args)
 	} else if function == "getRxForPatient" {
-		// TESTED OK - check with approved attribute
+		// TESTED OK
 		return t.getRxForPatient(stub, args)
-	} else if function == "getAllRx" {
-		// TODO
-		return t.getAllRx(stub, args)
 	} else if function == "modifyRx" {
-		// TESTED OK - check with approved attribute
+		// TESTED OK
 		return t.modifyRx(stub, args)
 	} else if function == "getRxHistoryOfPatient" {
-		// bug found
+		// TESTED OK
 		return t.getRxHistoryOfPatient(stub, args)
 	} else if function == "newHeartRateMessage" {
 		// TESTED OK
@@ -79,6 +76,18 @@ func (t *Chaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	} else if function == "getPeople" {
 		// TESTED OK
 		return t.getPeople(stub, args)
+	} else if function == "getInsurance" {
+		// TESTED OK
+		return t.getInsurance(stub, args)
+	} else if function == "insertInsurance" {
+		// TESTED OK
+		return t.insertInsurance(stub, args)
+	} else if function == "newBloodPressure" {
+		// TESTED OK
+		return t.newBloodPressure(stub, args)
+	} else if function == "getBloodPressureHistory" {
+		// TESTED OK
+		return t.getBloodPressureHistory(stub, args)
 	}
 
 	fmt.Println("invoke did not find func: " + function) //error
