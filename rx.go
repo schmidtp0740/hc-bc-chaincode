@@ -134,7 +134,7 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 }
 
 // modifyPrescription: modifies existing prescription
-// TODO modify with approved attribute
+//
 func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	//   0       	1      	2     		3		   4			5	       		6		7		8
 	// "patientid", "rxid", timestamp, "doctor", "pharmacist", "prescription", refills,"status", "approved"
@@ -185,7 +185,7 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 
 	status := args[7]
 
-	approved, err := strconv.ParseBool(args[7])
+	approved, err := strconv.ParseBool(args[8])
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -241,7 +241,7 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	return shim.Success(nil)
 }
 
-// TODO modify with approved attribute
+// getRxHistoryOfPatient get rx history for a given patient
 func (t *Chaincode) getRxHistoryOfPatient(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	// 	0
 	// "patientid"
@@ -320,10 +320,6 @@ func (t *Chaincode) getRxHistoryOfPatient(stub shim.ChaincodeStubInterface, args
 	}
 
 	return shim.Success(rxHistoryResponseAsBytes)
-}
-
-func (t *Chaincode) getAllRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	return shim.Success(nil)
 }
 
 // TODO modify with approved attribute
