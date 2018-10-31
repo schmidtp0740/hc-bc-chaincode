@@ -20,15 +20,15 @@ type rx struct {
 	Refills      int    `json:"refills,emitempty"`      // number of refills
 	ExpirateDate int    `json:"expDate,omitempty"`
 	Status       string `json:"status,emitempty"` // current status of the prescription
-	Approved     bool   `json:"approved,omitempty"`
+	Approved     string `json:"approved,omitempty"`
 }
 
 // initPrescription: create a new prescription
 // TODO modify with approved attribute
 func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//   0       		1      2     	3		   4	       		5		6		7
-	// "patientID", "rxid", timestamp, "doctor", "prescription", refills, "status", "approved"
-	if len(args) < 8 {
+	//   0       		1      2     	3		   4	       		5		6		7			8
+	// "patientID", "rxid", timestamp, "doctor", "prescription", refills, expDate,  "status", "approved"
+	if len(args) < 9 {
 		return shim.Error("Incorrect number of arguments. Expecting 9")
 	}
 
@@ -46,10 +46,10 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 	if len(args[4]) <= 0 {
 		return shim.Error("6th argument must be a non-empty string")
 	}
-	if len(args[6]) <= 0 {
+	if len(args[7]) <= 0 {
 		return shim.Error("7th argument must be a non-empty string")
 	}
-	if len(args[7]) <= 0 {
+	if len(args[8]) <= 0 {
 		return shim.Error("8th arguement must be a non-empty string")
 	}
 
@@ -69,12 +69,14 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 		return shim.Error("5th arguement must be a non empty integer string")
 	}
 
-	status := args[6]
-
-	approved, err := strconv.ParseBool(args[7])
+	expDate, err := strconv.Atoi(args[6])
 	if err != nil {
-		return shim.Error("unable to parse bool from 7th arguement")
+		return shim.Error("6th arguement must be a non empty integer string")
 	}
+
+	status := args[7]
+
+	approved := args[8]
 
 	// get patient Record
 	patientRecord := EMR{}
@@ -102,6 +104,7 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 		Prescription: prescription,
 		Refills:      refills,
 		Status:       status,
+		ExpirateDate: expDate,
 		Approved:     approved,
 	}
 
@@ -136,9 +139,9 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 // modifyPrescription: modifies existing prescription
 //
 func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//   0       	1      	2     		3		   4			5	       		6		7		8
-	// "patientid", "rxid", timestamp, "doctor", "pharmacist", "prescription", refills,"status", "approved"
-	if len(args) < 8 {
+	//   0       	1      	2     		3		   4			5	       		6		7		8			9
+	// "patientid", "rxid", timestamp, "doctor", "pharmacist", "prescription", refills, expDate, "status", "approved"
+	if len(args) < 10 {
 		return shim.Error("Incorrect number of arguments. Expecting 9")
 	}
 
@@ -160,10 +163,10 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	if len(args[5]) <= 0 {
 		return shim.Error("6th argument must be a non-empty string")
 	}
-	if len(args[7]) <= 0 {
+	if len(args[8]) <= 0 {
 		return shim.Error("8th argument must be a non-empty string")
 	}
-	if len(args[8]) <= 0 {
+	if len(args[9]) <= 0 {
 		return shim.Error("9th arguement must be a non empty string")
 	}
 
@@ -183,12 +186,14 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 		return shim.Error(err.Error())
 	}
 
-	status := args[7]
-
-	approved, err := strconv.ParseBool(args[8])
+	expDate, err := strconv.Atoi(args[7])
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+
+	status := args[8]
+
+	approved := args[9]
 
 	// retrieve patient record
 	patientRecordAsBytes, err := stub.GetState(patientID)
@@ -216,6 +221,7 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 			patientRecord.RxList[key].Refills = refills
 			patientRecord.RxList[key].Status = status
 			patientRecord.RxList[key].Timestamp = timestamp
+			patientRecord.RxList[key].ExpirateDate = expDate
 			patientRecord.RxList[key].Approved = approved
 			IfExists = true
 		}

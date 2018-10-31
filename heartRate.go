@@ -17,7 +17,7 @@ type heartRateMessage struct {
 	Timestamp int `json:"timestamp,omitempty"` // timestamp of the record
 }
 
-// initIOTData
+// newHeartRateMessage
 // input: id, heart rate and timestamp
 // output: confirmation of record saved
 // summary: insert each entry of a new heart rate message
