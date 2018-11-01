@@ -12,24 +12,26 @@ import (
 
 // rx
 type rx struct {
-	RXID         string `json:"rxid"`             // id of the prescription
-	Timestamp    int    `json:"timestamp"`        // timestamp of when prescription was prescribed and filled
-	Doctor       string `json:"doctor,omitempty"` // name of the doctor
-	Pharmacist   string `json:"pharmacist,omitempty"`
-	Prescription string `json:"prescription,omitempty"` // prescription name
-	Refills      int    `json:"refills,emitempty"`      // number of refills
-	ExpirateDate int    `json:"expDate,omitempty"`
-	Status       string `json:"status,emitempty"` // current status of the prescription
-	Approved     string `json:"approved,omitempty"`
+	RXID         string  `json:"rxid"`             // id of the prescription
+	Timestamp    int     `json:"timestamp"`        // timestamp of when prescription was prescribed and filled
+	Doctor       string  `json:"doctor,omitempty"` // name of the doctor
+	DocLicense   string  `json:"docLicense,omitempty"`
+	Pharmacist   string  `json:"pharmacist,omitempty"`
+	PhLicense    string  `json:"phLicense,omitempty"`
+	Prescription string  `json:"prescription,omitempty"` // prescription name
+	Refills      int     `json:"refills,omitempty"`      // number of refills
+	Quantity     float64 `json:"quantity,omitempty"`
+	ExpirateDate int     `json:"expDate,omitempty"`
+	Status       string  `json:"status,omitempty"` // current status of the prescription
+	Approved     string  `json:"approved,omitempty"`
 }
 
 // initPrescription: create a new prescription
-// TODO modify with approved attribute
 func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//   0       		1      2     	3		   4	       		5		6		7			8
-	// "patientID", "rxid", timestamp, "doctor", "prescription", refills, expDate,  "status", "approved"
-	if len(args) < 9 {
-		return shim.Error("Incorrect number of arguments. Expecting 9")
+	//   0       		1      2     	3		   4	       	5				6		7			8		9
+	// "patientID", "rxid", timestamp, "doctor", "docLicense", "prescription", refills, quantity, expDate,  "status"
+	if len(args) < 10 {
+		return shim.Error("Incorrect number of arguments. Expecting 10")
 	}
 
 	// ==== Input sanitation ====
@@ -44,13 +46,13 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 		return shim.Error("4th argument must be a non-empty string")
 	}
 	if len(args[4]) <= 0 {
+		return shim.Error("5th argument must be a non-empty string")
+	}
+	if len(args[5]) <= 0 {
 		return shim.Error("6th argument must be a non-empty string")
 	}
-	if len(args[7]) <= 0 {
-		return shim.Error("7th argument must be a non-empty string")
-	}
-	if len(args[8]) <= 0 {
-		return shim.Error("8th arguement must be a non-empty string")
+	if len(args[9]) <= 0 {
+		return shim.Error("10th arguement must be a non-empty string")
 	}
 
 	patientID := args[0]
@@ -62,21 +64,25 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 	}
 
 	doctor := args[3]
-	prescription := args[4]
+	docLicense := args[4]
+	prescription := args[5]
 
-	refills, err := strconv.Atoi(args[5])
+	refills, err := strconv.Atoi(args[6])
 	if err != nil {
-		return shim.Error("5th arguement must be a non empty integer string")
+		return shim.Error("7th arguement must be a non empty integer string")
 	}
 
-	expDate, err := strconv.Atoi(args[6])
+	quantity, err := strconv.ParseFloat(args[7], 64)
+	if err != nil {
+		return shim.Error("7th arguement must be a non empty integer string")
+	}
+
+	expDate, err := strconv.Atoi(args[8])
 	if err != nil {
 		return shim.Error("6th arguement must be a non empty integer string")
 	}
 
-	status := args[7]
-
-	approved := args[8]
+	status := args[9]
 
 	// get patient Record
 	patientRecord := EMR{}
@@ -101,11 +107,13 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 		RXID:         rxid,
 		Timestamp:    timestamp,
 		Doctor:       doctor,
+		DocLicense:   docLicense,
 		Prescription: prescription,
 		Refills:      refills,
+		Quantity:     quantity,
 		Status:       status,
 		ExpirateDate: expDate,
-		Approved:     approved,
+		Approved:     "false",
 	}
 
 	// see if rxid already exists in patient record
@@ -136,12 +144,11 @@ func (t *Chaincode) insertRx(stub shim.ChaincodeStubInterface, args []string) pb
 	return shim.Success(nil)
 }
 
-// modifyPrescription: modifies existing prescription
-//
-func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//   0       	1      	2     		3		   4			5	       		6		7		8			9
-	// "patientid", "rxid", timestamp, "doctor", "pharmacist", "prescription", refills, expDate, "status", "approved"
-	if len(args) < 10 {
+// fillRx: modifies existing prescription
+func (t *Chaincode) fillRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//   0       	1      	2     		3		   		4			5	       		6		7		8
+	// "patientid", "rxid", timestamp, "pharmacist", "phLicense", "prescription", refills, expDate, "status"
+	if len(args) < 9 {
 		return shim.Error("Incorrect number of arguments. Expecting 9")
 	}
 
@@ -163,10 +170,10 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	if len(args[5]) <= 0 {
 		return shim.Error("6th argument must be a non-empty string")
 	}
-	if len(args[8]) <= 0 {
+	if len(args[7]) <= 0 {
 		return shim.Error("8th argument must be a non-empty string")
 	}
-	if len(args[9]) <= 0 {
+	if len(args[8]) <= 0 {
 		return shim.Error("9th arguement must be a non empty string")
 	}
 
@@ -177,8 +184,8 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 		return shim.Error(err.Error())
 	}
 
-	doctor := args[3]
-	pharmacist := args[4]
+	pharmacist := args[3]
+	phLicense := args[4]
 	prescription := args[5]
 
 	refills, err := strconv.Atoi(args[6])
@@ -192,8 +199,6 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	}
 
 	status := args[8]
-
-	approved := args[9]
 
 	// retrieve patient record
 	patientRecordAsBytes, err := stub.GetState(patientID)
@@ -215,13 +220,88 @@ func (t *Chaincode) modifyRx(stub shim.ChaincodeStubInterface, args []string) pb
 	for key, tempRx := range patientRecord.RxList {
 		// update rx record with new details
 		if tempRx.RXID == rxid {
-			patientRecord.RxList[key].Doctor = doctor
 			patientRecord.RxList[key].Pharmacist = pharmacist
+			patientRecord.RxList[key].PhLicense = phLicense
 			patientRecord.RxList[key].Prescription = prescription
 			patientRecord.RxList[key].Refills = refills
 			patientRecord.RxList[key].Status = status
 			patientRecord.RxList[key].Timestamp = timestamp
 			patientRecord.RxList[key].ExpirateDate = expDate
+			IfExists = true
+		}
+	}
+
+	if IfExists == false {
+		return shim.Error("RXID does not exist: " + rxid)
+	}
+
+	// convert struct to json bytes
+	patientRecordAsBytes, err = json.Marshal(patientRecord)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// send rx record to state ledger
+	err = stub.PutState(patientID, patientRecordAsBytes)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	fmt.Println("- end modifyObject (success)")
+	return shim.Success(nil)
+}
+
+// approveRx ...
+func (t *Chaincode) approveRx(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//   0       	1      	2     		3
+	// "patientid", "rxid", timestamp,  "approved"
+	if len(args) < 4 {
+		return shim.Error("Incorrect number of arguments. Expecting 9")
+	}
+
+	// ==== Input sanitation ====
+	fmt.Println("- start init modifyObject")
+	if len(args[0]) <= 0 {
+		return shim.Error("1st argument must be a non-empty string")
+	}
+	if len(args[1]) <= 0 {
+		return shim.Error("2nd argument must be a non-empty string")
+	}
+
+	if len(args[3]) <= 0 {
+		return shim.Error("4th argument must be a non-empty string")
+	}
+
+	patientID := args[0]
+	rxid := args[1]
+	timestamp, err := strconv.Atoi(args[2])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	approved := args[3]
+
+	// retrieve patient record
+	patientRecordAsBytes, err := stub.GetState(patientID)
+	if err != nil {
+		return shim.Error("Failed to get record: " + patientID)
+	} else if patientRecordAsBytes == nil {
+		return shim.Error("patient record does not exist: " + patientID)
+	}
+
+	// create a patient record interface to load bytes into
+	patientRecord := EMR{}
+	err = json.Unmarshal(patientRecordAsBytes, &patientRecord)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// check if prescription record exists
+	IfExists := false
+	for key, tempRx := range patientRecord.RxList {
+		// update rx record with new details
+		if tempRx.RXID == rxid {
+			patientRecord.RxList[key].Timestamp = timestamp
 			patientRecord.RxList[key].Approved = approved
 			IfExists = true
 		}

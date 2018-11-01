@@ -58,9 +58,12 @@ func (t *Chaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	} else if function == "getRxForPatient" {
 		// TESTED OK
 		return t.getRxForPatient(stub, args)
-	} else if function == "modifyRx" {
+	} else if function == "fillRx" {
 		// TESTED OK
-		return t.modifyRx(stub, args)
+		return t.fillRx(stub, args)
+	} else if function == "approveRx" {
+		// TESTED OK
+		return t.approveRx(stub, args)
 	} else if function == "getRxHistoryOfPatient" {
 		// TESTED OK
 		return t.getRxHistoryOfPatient(stub, args)
