@@ -9,7 +9,7 @@ import (
 
 type hack struct {
 	ObjectType string `json:"ObjType"`
-	IsHacked   bool   `json:"isHacked"`
+	IsHacked   string `json:"isHacked"`
 }
 
 // isHacked
@@ -25,7 +25,7 @@ func (t *Chaincode) isHacked(stub shim.ChaincodeStubInterface, args []string) pb
 	if hackRecordAsBytes == nil {
 		hackRecord := hack{
 			ObjectType: "hack",
-			IsHacked:   false,
+			IsHacked:   "false",
 		}
 
 		hackRecordAsBytes, err = json.Marshal(hackRecord)
@@ -56,7 +56,7 @@ func (t *Chaincode) hack(stub shim.ChaincodeStubInterface, args []string) pb.Res
 	// there was no hack record to begin with so make a default hack record of IsHacked = false
 	if hackRecordAsBytes == nil {
 		hackRecord.ObjectType = "hack"
-		hackRecord.IsHacked = false
+		hackRecord.IsHacked = "false"
 	} else {
 		// record existed so grabbing current state
 		if err := json.Unmarshal(hackRecordAsBytes, &hackRecord); err != nil {
@@ -64,10 +64,10 @@ func (t *Chaincode) hack(stub shim.ChaincodeStubInterface, args []string) pb.Res
 		}
 	}
 
-	if hackRecord.IsHacked == true {
-		hackRecord.IsHacked = false
+	if hackRecord.IsHacked == "true" {
+		hackRecord.IsHacked = "false"
 	} else {
-		hackRecord.IsHacked = true
+		hackRecord.IsHacked = "true"
 	}
 
 	hackRecordAsBytes, err = json.Marshal(hackRecord)

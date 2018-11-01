@@ -88,6 +88,10 @@ func (t *Chaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	} else if function == "getBloodPressureHistory" {
 		// TESTED OK
 		return t.getBloodPressureHistory(stub, args)
+	} else if function == "isHacked" {
+		return t.isHacked(stub, args)
+	} else if function == "hack" {
+		return t.hack(stub, args)
 	}
 
 	fmt.Println("invoke did not find func: " + function) //error
