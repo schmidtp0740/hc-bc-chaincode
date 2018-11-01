@@ -11,7 +11,7 @@ import (
 
 type insurance struct {
 	Name           string `json:"insuranceName,omitempty"`
-	ExpirationDate int    `json:"expirationDate,omitempty"`
+	ExpirationDate int    `json:"expDate,omitempty"`
 	PolicyID       string `json:"policyID,omitempty"`
 }
 
@@ -81,7 +81,6 @@ func (t *Chaincode) insertInsurance(stub shim.ChaincodeStubInterface, args []str
 	return shim.Success(nil)
 }
 
-// TODO ASAP
 func (t *Chaincode) getInsurance(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	// 0
 	// "patientID"
